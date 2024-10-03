@@ -1,41 +1,39 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const cors = require('cors');
 
-// Initialize express app and HTTP server
 const app = express();
 const server = http.createServer(app);
 
-// Dynamic port based on environment or fallback to 3000
-const PORT = process.env.PORT || 3000;
-
-// Set up Socket.IO with CORS configuration
+// Enable CORS for all origins (to allow your Vercel frontend to connect)
 const io = new Server(server, {
-    cors: {
-        origin: "https://argus-alert.vercel.app",  // Your front-end URL
-        methods: ["GET", "POST"],
-    }
+  cors: {
+    origin: "*", // This allows any origin to connect, adjust if needed
+    methods: ["GET", "POST"]
+  }
 });
 
-// Event listener for new WebSocket connections
+// Log when a client connects
 io.on('connection', (socket) => {
-    console.log('A client connected:', socket.id);
+  console.log('A client connected:', socket.id);
 
-    // Handle incoming alerts from Python (or any source)
-    socket.on('alert', (data) => {
-        console.log('Received alert:', data);
+  // Handle the 'alert' event from the client (your Python script)
+  socket.on('alert', (data) => {
+    console.log('Alert received:', data);
+    
+    // Broadcast the alert to all connected clients (including the frontend)
+    io.emit('alert', data);
+  });
 
-        // Broadcast the alert to all connected clients (your front-end)
-        io.emit('new-alert', data);
-    });
-
-    // Handle client disconnection
-    socket.on('disconnect', () => {
-        console.log('Client disconnected:', socket.id);
-    });
+  // Handle client disconnection
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
 });
 
-// Serve HTTP on the chosen port
+// Server listens on the specified port
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  console.log(`Socket.IO server running on port ${PORT}`);
 });
