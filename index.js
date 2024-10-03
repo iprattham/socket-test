@@ -1,23 +1,41 @@
-const express = require("express");
-const http = require("http");
-const socketIO = require("socket.io");
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 
+// Initialize express app and HTTP server
 const app = express();
 const server = http.createServer(app);
-const io = socketIO(server);
 
-io.on("connection", (socket) => {
-    console.log("New client connected");
-    
-    // Send an alert when needed
-    socket.emit("alert", {
-        message: `ALERT: Threat Detected ${Math.floor(Math.random() * 100)}!`,
-        image: "<base64_encoded_image>"
+// Dynamic port based on environment or fallback to 3000
+const PORT = process.env.PORT || 3000;
+
+// Set up Socket.IO with CORS configuration
+const io = new Server(server, {
+    cors: {
+        origin: "https://argus-alert.vercel.app",  // Your front-end URL
+        methods: ["GET", "POST"],
+    }
+});
+
+// Event listener for new WebSocket connections
+io.on('connection', (socket) => {
+    console.log('A client connected:', socket.id);
+
+    // Handle incoming alerts from Python (or any source)
+    socket.on('alert', (data) => {
+        console.log('Received alert:', data);
+
+        // Broadcast the alert to all connected clients (your front-end)
+        io.emit('new-alert', data);
     });
 
-    socket.on("disconnect", () => {
-        console.log("Client disconnected");
+    // Handle client disconnection
+    socket.on('disconnect', () => {
+        console.log('Client disconnected:', socket.id);
     });
 });
 
-server.listen(3000, () => console.log("Listening on port 3000"));
+// Serve HTTP on the chosen port
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
